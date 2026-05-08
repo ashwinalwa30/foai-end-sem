@@ -3,9 +3,6 @@ import axios from 'axios';
 const CACHE_KEY_PREFIX = 'news_cache_';
 const CACHE_EXPIRY = 15 * 60 * 1000; // 15 minutes
 
-const NEWS_API_KEY = import.meta.env.VITE_NEWS_API_KEY;
-const IS_DEV = import.meta.env.DEV;
-
 const CATEGORY_MAP = {
   technology: 'technology',
   space: 'science',
@@ -25,33 +22,9 @@ export const fetchNews = async (category = 'technology') => {
   }
 
   try {
-    let articles = [];
-
-    if (IS_DEV) {
-      // On localhost: call NewsAPI directly (CORS allowed in dev / localhost)
-      const mappedCategory = CATEGORY_MAP[category] || 'technology';
-      const response = await axios.get('https://newsapi.org/v2/top-headlines', {
-        params: {
-          category: mappedCategory,
-          language: 'en',
-          pageSize: 10,
-          apiKey: NEWS_API_KEY,
-        },
-      });
-      articles = (response.data.articles || []).map(article => ({
-        title: article.title,
-        description: article.description,
-        url: article.url,
-        urlToImage: article.urlToImage,
-        publishedAt: article.publishedAt,
-        source: { name: article.source?.name || 'Unknown' },
-        author: article.author || article.source?.name || 'Unknown',
-      }));
-    } else {
-      // In production (Netlify): use the serverless proxy to avoid CORS
-      const response = await axios.get(`/api/news?category=${category}`);
-      articles = response.data.articles || [];
-    }
+    // Always use the Netlify proxy (works via netlify dev locally, and functions in production)
+    const response = await axios.get(`/api/news?category=${category}`);
+    const articles = response.data.articles || [];
 
     localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), articles }));
     return articles;
