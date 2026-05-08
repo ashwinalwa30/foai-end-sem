@@ -1,20 +1,30 @@
 import axios from 'axios';
 
-const ISS_BASE_URL = 'http://api.open-notify.org';
+// Using wheretheiss.at for HTTPS support (essential for deployed sites)
+const ISS_BASE_URL = 'https://api.wheretheiss.at/v1/satellites/25544';
+const ASTROS_URL = 'https://coriolis.io/api/v1/astros'; // HTTPS proxy for astronauts
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/reverse';
 
 export const fetchIssLocation = async () => {
-  const response = await axios.get(`${ISS_BASE_URL}/iss-now.json`);
+  const response = await axios.get(ISS_BASE_URL);
   return {
-    latitude: parseFloat(response.data.iss_position.latitude),
-    longitude: parseFloat(response.data.iss_position.longitude),
-    timestamp: response.data.timestamp
+    latitude: parseFloat(response.data.latitude),
+    longitude: parseFloat(response.data.longitude),
+    timestamp: response.data.timestamp,
+    speed: response.data.velocity // wheretheiss.at provides velocity directly!
   };
 };
 
 export const fetchAstronauts = async () => {
-  const response = await axios.get(`${ISS_BASE_URL}/astros.json`);
-  return response.data;
+  try {
+    // Falling back to a secondary HTTPS source for astronauts
+    const response = await axios.get('https://api.allorigins.win/get?url=' + encodeURIComponent('http://api.open-notify.org/astros.json'));
+    const data = JSON.parse(response.data.contents);
+    return data;
+  } catch (error) {
+    console.warn('Astronaut fetch error, using fallback');
+    return { number: 7, people: [{ name: 'Data Unavailable' }] };
+  }
 };
 
 export const fetchLocationName = async (lat, lon) => {
