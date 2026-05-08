@@ -1,39 +1,43 @@
-export default async (req, context) => {
-  const url = new URL(req.url);
-  const category = url.searchParams.get('category') || 'technology';
+const CATEGORY_MAP = {
+  technology: 'technology',
+  space: 'science',
+  science: 'science',
+  astronomy: 'science',
+};
 
+exports.handler = async function (event, context) {
+  const headers = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+  };
+
+  const category = event.queryStringParameters?.category || 'technology';
   const NEWS_API_KEY = process.env.VITE_NEWS_API_KEY;
 
   if (!NEWS_API_KEY) {
-    return new Response(JSON.stringify({ error: 'News API key not configured' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-    });
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: 'News API key not configured on server.' }),
+    };
   }
 
   try {
-    // Map categories to NewsAPI valid values
-    const categoryMap = {
-      technology: 'technology',
-      space: 'science',
-      science: 'science',
-      astronomy: 'science',
-    };
-    const mappedCategory = categoryMap[category] || 'technology';
+    const mappedCategory = CATEGORY_MAP[category] || 'technology';
+    const url = `https://newsapi.org/v2/top-headlines?category=${mappedCategory}&language=en&pageSize=10&apiKey=${NEWS_API_KEY}`;
 
-    const apiUrl = `https://newsapi.org/v2/top-headlines?category=${mappedCategory}&language=en&pageSize=10&apiKey=${NEWS_API_KEY}`;
-
-    const response = await fetch(apiUrl);
+    const response = await fetch(url);
     const data = await response.json();
 
     if (!response.ok || data.status === 'error') {
-      return new Response(JSON.stringify({ error: data.message || 'NewsAPI error' }), {
-        status: response.status || 500,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      });
+      return {
+        statusCode: response.status || 500,
+        headers,
+        body: JSON.stringify({ error: data.message || 'NewsAPI error' }),
+      };
     }
 
-    const articles = (data.articles || []).map(article => ({
+    const articles = (data.articles || []).map((article) => ({
       title: article.title,
       description: article.description,
       url: article.url,
@@ -43,21 +47,12 @@ export default async (req, context) => {
       author: article.author || article.source?.name || 'Unknown',
     }));
 
-    return new Response(JSON.stringify({ articles }), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
+    return { statusCode: 200, headers, body: JSON.stringify({ articles }) };
   } catch (error) {
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-    });
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ error: error.message }),
+    };
   }
-};
-
-export const config = {
-  path: '/api/news',
 };

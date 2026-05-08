@@ -1,29 +1,22 @@
-const ASTROS_URL = 'http://api.open-notify.org/astros.json';
+exports.handler = async function (event, context) {
+  const headers = {
+    'Content-Type': 'application/json',
+    'Access-Control-Allow-Origin': '*',
+  };
 
-export default async (req, context) => {
   try {
-    const response = await fetch(ASTROS_URL);
+    const response = await fetch('http://api.open-notify.org/astros.json');
     const data = await response.json();
-
-    return new Response(JSON.stringify(data), {
-      status: 200,
-      headers: {
-        'Content-Type': 'application/json',
-        'Access-Control-Allow-Origin': '*',
-      },
-    });
+    return { statusCode: 200, headers, body: JSON.stringify(data) };
   } catch (error) {
-    // Fallback data if API is down
-    return new Response(
-      JSON.stringify({ number: 7, people: [{ name: 'Data Unavailable', craft: 'ISS' }] }),
-      {
-        status: 200,
-        headers: { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
-      }
-    );
+    // Fallback if API is down
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        number: 7,
+        people: [{ name: 'Data Unavailable', craft: 'ISS' }],
+      }),
+    };
   }
-};
-
-export const config = {
-  path: '/api/astros',
 };
