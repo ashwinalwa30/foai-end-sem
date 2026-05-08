@@ -1,15 +1,8 @@
 import axios from 'axios';
 
-const HF_TOKEN = import.meta.env.VITE_AI_TOKEN;
-const MODEL = 'mistralai/Mistral-7B-Instruct-v0.2';
-
 export const getAiResponse = async (userMessage, dashboardContext) => {
-  if (!HF_TOKEN) {
-    return "AI Token is missing. Please check your .env file.";
-  }
-
   const { issData, newsData } = dashboardContext;
-  
+
   const systemPrompt = `
 You are a helpful dashboard assistant. You can ONLY answer questions based on the provided dashboard data (ISS and News).
 If a user asks about something not in the data, respond with: "I can only answer based on dashboard data."
@@ -25,32 +18,25 @@ Rule: Do NOT use any external knowledge. No internet browsing. No guessing.
 `;
 
   try {
-    const response = await axios.post(
-      `https://api-inference.huggingface.co/models/${MODEL}`,
-      {
-        inputs: `<s>[INST] ${systemPrompt} \n User: ${userMessage} [/INST]`,
-        parameters: {
-          max_new_tokens: 250,
-          temperature: 0.7,
-        }
-      },
-      {
-        headers: {
-          Authorization: `Bearer ${HF_TOKEN}`,
-          'Content-Type': 'application/json',
-        }
+    // Call our Netlify proxy function instead of Hugging Face directly (fixes CORS in production)
+    const response = await axios.post('/api/ai', {
+      inputs: `<s>[INST] ${systemPrompt} \n User: ${userMessage} [/INST]`,
+      parameters: {
+        max_new_tokens: 250,
+        temperature: 0.7,
       }
-    );
+    });
 
-    let result = response.data[0].generated_text;
-    // Extract only the assistant response
+    let result = response.data[0]?.generated_text || '';
+
+    // Extract only the assistant response after [/INST]
     if (result.includes('[/INST]')) {
       result = result.split('[/INST]').pop().trim();
     }
-    
-    return result;
+
+    return result || 'No response generated.';
   } catch (error) {
     console.error('AI Error:', error);
-    return "Sorry, I encountered an error while processing your request. Please check if the model is loading or the token is valid.";
+    return 'Sorry, I encountered an error while processing your request. The AI model may be loading — please try again in a moment.';
   }
 };
