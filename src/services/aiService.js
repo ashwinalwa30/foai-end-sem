@@ -3,40 +3,43 @@ import axios from 'axios';
 export const getAiResponse = async (userMessage, dashboardContext) => {
   const { issData, newsData } = dashboardContext;
 
-  const systemPrompt = `
-You are a helpful dashboard assistant. You can ONLY answer questions based on the provided dashboard data (ISS and News).
-If a user asks about something not in the data, respond with: "I can only answer based on dashboard data."
+  const systemPrompt = `You are a helpful ISS dashboard assistant. Only answer based on the dashboard data below.
+If asked about something not in this data, say: "I can only answer based on dashboard data."
 
-Current Dashboard Data:
+Dashboard Data:
 - ISS Location: Lat ${issData.latitude}, Lon ${issData.longitude}
 - ISS Speed: ${issData.speed} km/h
 - Nearest Place: ${issData.locationName}
 - Astronauts in Space: ${issData.astronautCount} (${issData.astronauts.join(', ')})
-- Recent News Headlines: ${newsData.map(a => a.title).join(' | ')}
+- Recent News Headlines: ${newsData.slice(0, 5).map(a => a.title).join(' | ')}`;
 
-Rule: Do NOT use any external knowledge. No internet browsing. No guessing.
-`;
+  // Zephyr-7b-beta uses <|system|> / <|user|> / <|assistant|> format
+  const prompt = `<|system|>\n${systemPrompt}</s>\n<|user|>\n${userMessage}</s>\n<|assistant|>`;
 
   try {
-    // Call our Netlify proxy function instead of Hugging Face directly (fixes CORS in production)
     const response = await axios.post('/api/ai', {
-      inputs: `<s>[INST] ${systemPrompt} \n User: ${userMessage} [/INST]`,
+      inputs: prompt,
       parameters: {
-        max_new_tokens: 250,
+        max_new_tokens: 200,
         temperature: 0.7,
+        return_full_text: false, // Only return the new generated text, not the prompt
       }
     });
 
-    let result = response.data[0]?.generated_text || '';
+    const data = response.data;
 
-    // Extract only the assistant response after [/INST]
-    if (result.includes('[/INST]')) {
-      result = result.split('[/INST]').pop().trim();
+    // Handle error responses from HF
+    if (data?.error) {
+      console.error('HF API error:', data.error);
+      return 'The AI model is currently busy. Please try again in a few seconds.';
     }
 
-    return result || 'No response generated.';
+    // zephyr returns array: [{ generated_text: "..." }]
+    const result = Array.isArray(data) ? data[0]?.generated_text : data?.generated_text;
+
+    return result?.trim() || 'No response generated. Please try again.';
   } catch (error) {
-    console.error('AI Error:', error);
-    return 'Sorry, I encountered an error while processing your request. The AI model may be loading — please try again in a moment.';
+    console.error('AI Error:', error?.response?.data || error.message);
+    return 'Unable to reach the AI. Please check your connection and try again.';
   }
 };
