@@ -1,0 +1,50 @@
+@import 'leaflet/dist/leaflet.css';
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "system-ui", "Avenir", "Helvetica", "Arial", "sans-serif";
+  --backdrop-blur-xs: 2px;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 100vh;
+  transition: background-color 0.3s ease;
+}
+
+@layer components {
+  .glass {
+    @apply bg-white/10 backdrop-blur-md border border-white/20;
+  }
+  
+  .glass-dark {
+    @apply bg-black/20 backdrop-blur-md border border-white/10;
+  }
+  
+  .card-premium {
+    @apply rounded-2xl shadow-xl transition-all duration-300 hover:shadow-2xl hover:scale-[1.01];
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-gray-400/50 rounded-full hover:bg-gray-500/50;
+}
+
+/* Dark Mode Transitions */
+:root {
+  @apply bg-slate-50 text-slate-900;
+}
+
+.dark {
+  @apply bg-slate-950 text-slate-100;
+}
